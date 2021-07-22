@@ -126,6 +126,7 @@ function separate(f::Function, sep::SepMeanSimple, sa::SeparatorArgs)
     end
 end
 
+# TODO: use dispatch refactor this one and the above one.
 function separate(f::Function, sep::SepMeanBased, sa::SeparatorArgs)
     hub = sa.hub_open
     hub_base = sa.hub_close
@@ -156,64 +157,6 @@ function separate(f::Function, sep::SepMeanBased, sa::SeparatorArgs)
     end
 end
 
-
-#=
-function _find_right_cross_simple(f::Function, hub::HubBacktrackView, strap::Strap, percent)
-    earliest_dt = typemax(DateTime)
-    for inflow in strap.inflow_vec
-        ddf_vec_inflow = concentration(f, hub, inflow)
-        for overflow in strap.overflow_vec
-            ddf_vec_overflow = concentration(f, hub, overflow)
-            dt_vec = DateTime[]
-            for (ddf_inflow, ddf_overflow) in zip(ddf_vec_inflow, ddf_vec_overflow)
-                ts = ddf_overflow.timestamp
-                for (t_prev, t) in zip(ts[1:end-1], ts[2:end])
-                    if (ddf_overflow[t] > ddf_inflow[t]) && (ddf_overflow[t_prev] < ddf_inflow[t_prev])
-                        @show inflow overflow ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]]
-                        push!(dt_vec, t)
-                        break
-                    end
-                end
-            end
-            if length(dt_vec) > 0
-                dt = quantile_datetime_vec(dt_vec, percent)
-                earliest_dt = min(dt, earliest_dt)
-            end
-        end
-    end
-    return earliest_dt
-end
-
-# TODO: find a way to combine two function but not resorting to macro
-function _find_right_cross_based(f::Function, hub::HubBacktrackView, hub_base::HubBacktrackView, strap::Strap, percent)
-    earliest_dt = typemax(DateTime)
-    for inflow in strap.inflow_vec
-        ddf_vec_inflow = concentration(f, hub, inflow)
-        for overflow in strap.overflow_vec
-            ddf_vec_overflow = concentration(f, hub, overflow)
-            ddf_base_vec_overflow = concentration(f, hub_base, overflow)
-            dt_vec = DateTime[]
-            for (ddf_inflow, ddf_overflow, ddf_base_overflow) in zip(ddf_vec_inflow, ddf_vec_overflow, ddf_base_vec_overflow)
-                ts = ddf_overflow.timestamp
-                for (t_prev, t) in zip(ts[1:end-1], ts[2:end])
-                    if (ddf_overflow[t] > ddf_inflow[t]) && (ddf_overflow[t_prev] < ddf_inflow[t_prev])
-                        if ddf_base_overflow[t] < ddf_overflow[t]
-                            @show inflow overflow ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]] ddf_base_overflow[[t_prev, t]]
-                            push!(dt_vec, t)
-                            break
-                        end
-                    end
-                end
-            end
-            if length(dt_vec) > 0
-                dt = quantile_datetime_vec(dt_vec, percent)
-                earliest_dt = min(dt, earliest_dt)
-            end
-        end
-    end
-    return earliest_dt
-end
-=#
 
 function _create_open_close_pair(hub_base::Hub, strap::Strap)
     undecided_range = get_undecided_range(hub_base)
