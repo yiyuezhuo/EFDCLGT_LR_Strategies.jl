@@ -1,7 +1,8 @@
 module EFDCLGT_LR_Strategies
 
 using Base: IteratorEltype
-export find_right_cross, SepMutualSimple, SepMutualBased, SepMeanSimple, SepMeanBased, search_opt
+export find_right_cross, SepMutualSimple, SepMutualBased, SepMeanSimple, SepMeanBased,
+        SearchOpt, solve!
 
 using DateDataFrames
 #=
@@ -16,7 +17,9 @@ using EFDCLGT_LR_Routes: AbstractRoute
 using Dates
 using Statistics
 
+include("utils.jl")
 include("separators.jl")
 include("search.jl")
+include("allocate.jl")
 
 end # module
