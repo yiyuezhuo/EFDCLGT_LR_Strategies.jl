@@ -40,7 +40,7 @@ struct SepMeanBased{IT <: AbstractRoute, OT <: AbstractRoute} <: Separator
 end
 
 
-function separate(f::Function, sep::SepMutualSimple, sa::SeparatorArgs)
+function separate(f::Function, sep::SepMutualSimple, undecided_begin::DateTime, sa::SeparatorArgs)
     hub = sa.hub_close
 
     earliest_dt = typemax(DateTime)
@@ -53,38 +53,8 @@ function separate(f::Function, sep::SepMutualSimple, sa::SeparatorArgs)
                 ts = ddf_overflow.timestamp
                 for (t_prev, t) in zip(ts[1:end-1], ts[2:end])
                     if (ddf_overflow[t] > ddf_inflow[t]) && (ddf_overflow[t_prev] < ddf_inflow[t_prev])
-                        @debug inflow overflow ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]]
-                        push!(dt_vec, t)
-                        break
-                    end
-                end
-            end
-            if length(dt_vec) > 0
-                dt = quantile_datetime_vec(dt_vec, sep.percent)
-                earliest_dt = min(dt, earliest_dt)
-            end
-        end
-    end
-    return earliest_dt
-end
-
-function separate(f::Function, sep::SepMutualBased, sa::SeparatorArgs)
-    hub = sa.hub_open
-    hub_base = sa.hub_close
-
-    earliest_dt = typemax(DateTime)
-    for inflow in sep.inflow_vec
-        ddf_vec_inflow = concentration(f, hub, inflow)
-        for overflow in sep.overflow_vec
-            ddf_vec_overflow = concentration(f, hub, overflow)
-            ddf_base_vec_overflow = concentration(f, hub_base, overflow)
-            dt_vec = DateTime[]
-            for (ddf_inflow, ddf_overflow, ddf_base_overflow) in zip(ddf_vec_inflow, ddf_vec_overflow, ddf_base_vec_overflow)
-                ts = ddf_overflow.timestamp
-                for (t_prev, t) in zip(ts[1:end-1], ts[2:end])
-                    if (ddf_overflow[t] > ddf_inflow[t]) && (ddf_overflow[t_prev] < ddf_inflow[t_prev])
-                        if ddf_base_overflow[t] < ddf_overflow[t]
-                            @debug inflow overflow ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]] ddf_base_overflow[[t_prev, t]]
+                        if t >= undecided_begin
+                            @debug inflow overflow ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]]
                             push!(dt_vec, t)
                             break
                         end
@@ -100,7 +70,41 @@ function separate(f::Function, sep::SepMutualBased, sa::SeparatorArgs)
     return earliest_dt
 end
 
-function separate(f::Function, sep::SepMeanSimple, sa::SeparatorArgs)
+function separate(f::Function, sep::SepMutualBased, undecided_begin::DateTime, sa::SeparatorArgs)
+    hub = sa.hub_open
+    hub_base = sa.hub_close
+
+    earliest_dt = typemax(DateTime)
+    for inflow in sep.inflow_vec
+        ddf_vec_inflow = concentration(f, hub, inflow)
+        for overflow in sep.overflow_vec
+            ddf_vec_overflow = concentration(f, hub, overflow)
+            ddf_base_vec_overflow = concentration(f, hub_base, overflow)
+            dt_vec = DateTime[]
+            for (ddf_inflow, ddf_overflow, ddf_base_overflow) in zip(ddf_vec_inflow, ddf_vec_overflow, ddf_base_vec_overflow)
+                ts = ddf_overflow.timestamp
+                for (t_prev, t) in zip(ts[1:end-1], ts[2:end])
+                    if (ddf_overflow[t] > ddf_inflow[t]) && (ddf_overflow[t_prev] < ddf_inflow[t_prev])
+                        if ddf_base_overflow[t] < ddf_overflow[t]
+                            if t >= undecided_begin
+                                @debug inflow overflow ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]] ddf_base_overflow[[t_prev, t]]
+                                push!(dt_vec, t)
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+            if length(dt_vec) > 0
+                dt = quantile_datetime_vec(dt_vec, sep.percent)
+                earliest_dt = min(dt, earliest_dt)
+            end
+        end
+    end
+    return earliest_dt
+end
+
+function separate(f::Function, sep::SepMeanSimple, undecided_begin::DateTime, sa::SeparatorArgs)
     hub = sa.hub_close
 
     ddf_inflow_vec = reduce(⊕, [concentration(f, hub, inflow) for inflow in sep.inflow_vec]) ⊘ length(sep.inflow_vec)
@@ -112,9 +116,11 @@ function separate(f::Function, sep::SepMeanSimple, sa::SeparatorArgs)
         ts = ddf_overflow.timestamp
         for (t_prev, t) in zip(ts[1:end-1], ts[2:end])
             if (ddf_overflow[t] > ddf_inflow[t]) && (ddf_overflow[t_prev] < ddf_inflow[t_prev])
-                @debug sep.inflow_vec sep.overflow_vec ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]]
-                push!(dt_vec, t)
-                break
+                if t >= undecided_begin
+                    @debug sep.inflow_vec sep.overflow_vec ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]]
+                    push!(dt_vec, t)
+                    break
+                end
             end
         end
     end
@@ -127,7 +133,7 @@ function separate(f::Function, sep::SepMeanSimple, sa::SeparatorArgs)
 end
 
 # TODO: use dispatch refactor this one and the above one.
-function separate(f::Function, sep::SepMeanBased, sa::SeparatorArgs)
+function separate(f::Function, sep::SepMeanBased, undecided_begin::DateTime, sa::SeparatorArgs)
     hub = sa.hub_open
     hub_base = sa.hub_close
 
@@ -142,9 +148,11 @@ function separate(f::Function, sep::SepMeanBased, sa::SeparatorArgs)
         for (t_prev, t) in zip(ts[1:end-1], ts[2:end])
             if (ddf_overflow[t] > ddf_inflow[t]) && (ddf_overflow[t_prev] < ddf_inflow[t_prev])
                 if ddf_base_overflow[t] < ddf_overflow[t]
-                    @debug sep.inflow_vec sep.overflow_vec ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]] ddf_base_overflow[[t_prev, t]]
-                    push!(dt_vec, t)
-                    break
+                    if t >= undecided_begin
+                        @debug sep.inflow_vec sep.overflow_vec ddf_overflow[[t_prev, t]] ddf_inflow[[t_prev, t]] ddf_base_overflow[[t_prev, t]]
+                        push!(dt_vec, t)
+                        break
+                    end
                 end
             end
         end
@@ -179,7 +187,8 @@ function _create_open_close_pair(hub_base::Hub, strap::Strap)
     return hub_vec
 end
 
-function find_right_cross(f::Function, separator_vec::AbstractVector{<:Separator}, hub_base::Hub, strap::Strap; step=Day(3))
+function find_right_cross(f::Function, separator_vec::AbstractVector{<:Separator}, hub_base::Hub, strap::Strap, 
+                            undecided_begin::DateTime; step=Day(3))
 
     hub_vec = _create_open_close_pair(hub_base, strap) # open, close
 
@@ -197,7 +206,7 @@ function find_right_cross(f::Function, separator_vec::AbstractVector{<:Separator
         sep_args = SeparatorArgs(HubBacktrackView.(hub_vec)...)
 
         right_cross_vec = map(separator_vec) do separator
-            return separate(f, separator, sep_args)
+            return separate(f, separator, undecided_begin, sep_args)
         end
 
         @debug "right_cross_vec=$right_cross_vec"

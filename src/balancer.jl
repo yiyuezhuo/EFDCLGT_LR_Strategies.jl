@@ -28,18 +28,18 @@ end
 function pure_balancer(f::Function, hub_base::Hub, strap::Strap, undecided_begin::DateTime, proposed_sep::DateTime;
                     balancer_window::T=Hour(6), coef=1., coef_ditch=coef, coef_inflow=coef,
                     right_relax::T=Hour(6), eval_lag::T=Hour(24)) where T <: Period
-    _range3::Range3{T}=Range3(hub_base, undecided_begin, proposed_sep, right_relax, eval_lag)
+    _range4::Range4{T}=Range4(hub_base, undecided_begin, proposed_sep, right_relax, eval_lag)
 
-    # undecided_range::StepRange{DateTime, T}=_range3.undecided_range
-    # interested_range::StepRange{DateTime, T}=_range3.interested_range
-    eval_range::StepRange{DateTime, T}=_range3.eval_range
+    # undecided_range::StepRange{DateTime, T}=_range4.undecided_range
+    # interested_range::StepRange{DateTime, T}=_range4.interested_range
+    eval_range::StepRange{DateTime, T}=_range4.eval_range
 
     inflow_mean_conc_map::Dict{Inflow, DateDataFrame}=get_inflow_mean_conc_map(f, hub_base, strap)
     inflow_mean_inflow_map = get_inflow_mean_flow_map(hub_base, strap)
     ditch_mean_inflow_map = get_ditch_mean_flow_map(hub_base, strap)
 
     pump_null_flow = sum(pump->pump.value * 3600, strap.pump_null_vec) # TODO: ⊐̸ m3/s -> m3/h
-    @info "pump_null_flow=$pump_null_flow, coef=$coef, balancer_window=$balancer_window"
+    @debug "pump_null_flow=$pump_null_flow, coef=$coef, balancer_window=$balancer_window"
 
     inflow_dt_vec = Iterators.product(strap.inflow_vec, eval_range) |> collect |> vec
     inflow_dt_vec_desc = sort(inflow_dt_vec, by=inflow_dt->inflow_mean_conc_map[inflow_dt[1]][inflow_dt[2]], rev=true)
@@ -91,7 +91,7 @@ function pure_balancer(f::Function, hub_base::Hub, strap::Strap, undecided_begin
         return true
     end
 
-    @info "pure_balancer: $(length(inflow_dt_vec)) -> $(length(inflow_dt_vec_selected))"
+    @info "pure_balancer: length(inflow_dt_vec)=$(length(inflow_dt_vec)), length(inflow_dt_vec_selected)=$(length(inflow_dt_vec_selected))"
 
     return inflow_dt_vec_selected
 end

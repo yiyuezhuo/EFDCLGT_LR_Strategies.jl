@@ -2,25 +2,7 @@
 # While it's more natural to use a pure function. 
 # We need a stateful object to avoid call costy run_simulation! again and again for a tiny bug.
 
-struct Range3{T}
-    undecided_range::StepRange{DateTime, T}
-    interested_range::StepRange{DateTime, T}
-    eval_range::StepRange{DateTime, T}
-end
 
-function Range3(hub_base::Hub, undecided_begin::DateTime, proposed_sep::DateTime, right_relax::Period, eval_lag::Period)
-    _undecided_range = get_undecided_range(hub_base)
-    @assert undecided_begin >= _undecided_range[1]
-    @assert proposed_sep <= _undecided_range[end]
-
-    undecided_range = undecided_begin : _undecided_range.step : _undecided_range[end]
-    interested_range = undecided_begin : _undecided_range.step : min(proposed_sep + right_relax, _undecided_range[end])
-    eval_range = undecided_begin : _undecided_range.step : min(ceil(proposed_sep + right_relax + eval_lag, Day) - Hour(1), _undecided_range[end])
-
-    @debug "undecided_range=$undecided_range, interested_range=$interested_range, eval_range=$eval_range"
-    
-    return Range3(undecided_range, interested_range, eval_range)
-end
 
 function get_initial_inflow_dt(strap::Strap, inflow_mean_conc_map, interested_range)
     max_conc = -Inf
@@ -117,7 +99,7 @@ function _create_prototype(hub_base::Hub, strap::Strap, eval_range)
     return hub_p
 end
 
-function apply_code(hub_p::Hub, strap::Strap, code::Dict; 
+function apply_code(hub_p::Hub, strap::Strap, code::Dict, 
                     pump_natural_time::Period, undecided_begin::DateTime)
     hub = copy(hub_p)
 
@@ -144,7 +126,7 @@ Base.@kwdef mutable struct SearchOpt{F <: Function, ST <: Sampler, T <: Period, 
     proposed_sep::DateTime
     opt_dst::String
 
-    #sampler::ST=FixedStepSampler(length(strap.inflow_vec))
+    # sampler::ST=FixedStepSampler(length(strap.inflow_vec))
     sampler::ST=IncStepSampler(length(strap.inflow_vec) * 2)
     batch_window_size::Int=24
     sub_window_size::Int=12
@@ -152,13 +134,15 @@ Base.@kwdef mutable struct SearchOpt{F <: Function, ST <: Sampler, T <: Period, 
     eval_lag::T=Hour(24)
     pump_natural_anchor_time::T=Hour(48)
     pump_search_time_vec::Vector{T}=Hour.([0, 1, 2, 3, 4, 5, 6, 8, 12, 24, 48, 72])
+    # hub_running_mode::RT=NormalBatch()
     hub_running_mode::RT=AutoRestartCutScheduler()
 
-    _range3::Range3{T}=Range3(hub_base, undecided_begin, proposed_sep, right_relax, eval_lag)
+    _range4::Range4{T}=Range4(hub_base, undecided_begin, proposed_sep, right_relax, eval_lag)
 
-    undecided_range::StepRange{DateTime, T}=_range3.undecided_range
-    interested_range::StepRange{DateTime, T}=_range3.interested_range
-    eval_range::StepRange{DateTime, T}=_range3.eval_range
+    undecided_range::StepRange{DateTime, T}=_range4.undecided_range
+    interested_range::StepRange{DateTime, T}=_range4.interested_range
+    eval_range::StepRange{DateTime, T}=_range4.eval_range
+    project_range::StepRange{DateTime, T}=_range4.project_range
 
     # TODO: Generalization to other statistics, such as quantile, mean+coef*std etc...
     inflow_mean_conc_map::Dict{Inflow, DateDataFrame}=get_inflow_mean_conc_map(f, hub_base, strap)
@@ -191,6 +175,7 @@ function SearchOpt(f::Function, hub_base::Hub, strap::Strap, undecided_begin::Da
     return SearchOpt(;f, hub_base, strap, undecided_begin, proposed_sep, opt_dst, kwargs...)
 end
 
+#=
 function Base.show(io::IO, so::SearchOpt)
     for fn in fieldnames(typeof(so))
         v = getfield(so, fn)
@@ -201,6 +186,9 @@ function Base.show(io::IO, so::SearchOpt)
         println(io, "$fn: $vs")
     end
 end
+=#
+
+Base.show(io::IO, so::SearchOpt) = simple_show(io, so)
 
 function step_inflow_pre!(so::SearchOpt; batch_window=so.batch_window,
                                 hub_p=so.hub_p, strap=so.strap, 
@@ -209,8 +197,7 @@ function step_inflow_pre!(so::SearchOpt; batch_window=so.batch_window,
                                 hub_running_mode=so.hub_running_mode)
 
     hub_vec = map(batch_window) do code
-        return apply_code(hub_p, strap, code; 
-                        pump_natural_time=pump_natural_anchor_time, undecided_begin)
+        return apply_code(hub_p, strap, code, pump_natural_anchor_time, undecided_begin)
     end
 
     push!(so.hub_vec_vec, hub_vec)
@@ -274,7 +261,7 @@ function solve_pump_pre!(so::SearchOpt;
                         hub_running_mode=so.hub_running_mode)
 
     hub_vec = map(pump_search_time_vec) do pump_natural_time
-        return apply_code(hub_p, strap, min_load_code; pump_natural_time, undecided_begin)
+        return apply_code(hub_p, strap, min_load_code, pump_natural_time, undecided_begin)
     end
 
     push!(so.hub_vec_vec, hub_vec)
@@ -294,8 +281,10 @@ function solve_pump_post!(so::SearchOpt;
 
     idx = argmin(load_vec)
     min_load_pump_natural_time = pump_search_time_vec[idx]
+    min_load = load_vec[idx]
 
     so.min_load_pump_natural_time = min_load_pump_natural_time
+    so.min_load = min_load
 end
 
 function solve_pump!(so::SearchOpt)

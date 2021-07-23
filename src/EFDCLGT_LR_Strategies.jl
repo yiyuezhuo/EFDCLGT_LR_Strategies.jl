@@ -3,7 +3,10 @@ module EFDCLGT_LR_Strategies
 using Base: IteratorEltype
 export find_right_cross, SepMutualSimple, SepMutualBased, SepMeanSimple, SepMeanBased,
         SearchOpt, solve!, FixedStepSampler, IncStepSampler,
-        pure_balancer, create_balanced_hub
+        pure_balancer, create_balanced_hub,
+        Range4, apply_code,
+        DecisionMaker, DecisionState, 
+        find_right_cross!, balance!, search!, project!, fork!, step!
 
 using DateDataFrames
 #=
@@ -23,5 +26,7 @@ include("samplers.jl")
 include("separators.jl")
 include("search.jl")
 include("balancer.jl")
+include("sequential.jl")
+include("recipes.jl")
 
 end # module

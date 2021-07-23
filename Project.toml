@@ -1,10 +1,11 @@
 name = "EFDCLGT_LR_Strategies"
 uuid = "5f2a63e8-a3ec-4214-9ca6-8735e59672fc"
 authors = ["yiyuezhuo <yiyuezhuo@gmail.com>"]
-version = "0.1.4"
+version = "0.1.5"
 
 [deps]
 DateDataFrames = "29e7b70a-2656-403a-ac7f-b13d7a27cc98"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 EFDCLGT_LR_Routes = "7c77e40b-13d7-4629-86a2-6a465cc6d5ed"
+RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
