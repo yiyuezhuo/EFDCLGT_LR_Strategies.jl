@@ -8,14 +8,14 @@ struct Range3{T}
     eval_range::StepRange{DateTime, T}
 end
 
-function Range3(hub_base::Hub, undecided_begin::DateTime, proposed_sep::DateTime, right_relex::Period, eval_lag::Period)
+function Range3(hub_base::Hub, undecided_begin::DateTime, proposed_sep::DateTime, right_relax::Period, eval_lag::Period)
     _undecided_range = get_undecided_range(hub_base)
     @assert undecided_begin >= _undecided_range[1]
     @assert proposed_sep <= _undecided_range[end]
 
     undecided_range = undecided_begin : _undecided_range.step : _undecided_range[end]
-    interested_range = undecided_begin : _undecided_range.step : min(proposed_sep + right_relex, _undecided_range[end])
-    eval_range = undecided_begin : _undecided_range.step : min(ceil(proposed_sep + right_relex + eval_lag, Day) - Hour(1), _undecided_range[end])
+    interested_range = undecided_begin : _undecided_range.step : min(proposed_sep + right_relax, _undecided_range[end])
+    eval_range = undecided_begin : _undecided_range.step : min(ceil(proposed_sep + right_relax + eval_lag, Day) - Hour(1), _undecided_range[end])
 
     @debug "undecided_range=$undecided_range, interested_range=$interested_range, eval_range=$eval_range"
     
@@ -148,18 +148,19 @@ Base.@kwdef mutable struct SearchOpt{F <: Function, ST <: Sampler, T <: Period, 
     sampler::ST=IncStepSampler(length(strap.inflow_vec) * 2)
     batch_window_size::Int=24
     sub_window_size::Int=12
-    right_relex::T=Hour(6)
+    right_relax::T=Hour(6)
+    eval_lag::T=Hour(24)
     pump_natural_anchor_time::T=Hour(48)
     pump_search_time_vec::Vector{T}=Hour.([0, 1, 2, 3, 4, 5, 6, 8, 12, 24, 48, 72])
-    eval_lag::T=Hour(24)
     hub_running_mode::RT=AutoRestartCutScheduler()
 
-    _range3::Range3{T}=Range3(hub_base, undecided_begin, proposed_sep, right_relex, eval_lag)
+    _range3::Range3{T}=Range3(hub_base, undecided_begin, proposed_sep, right_relax, eval_lag)
 
     undecided_range::StepRange{DateTime, T}=_range3.undecided_range
     interested_range::StepRange{DateTime, T}=_range3.interested_range
     eval_range::StepRange{DateTime, T}=_range3.eval_range
 
+    # TODO: Generalization to other statistics, such as quantile, mean+coef*std etc...
     inflow_mean_conc_map::Dict{Inflow, DateDataFrame}=get_inflow_mean_conc_map(f, hub_base, strap)
 
     _initial_inflow_dt::Tuple{Inflow, DateTime}=get_initial_inflow_dt(strap, inflow_mean_conc_map, interested_range)

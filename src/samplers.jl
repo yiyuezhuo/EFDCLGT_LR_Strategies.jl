@@ -5,6 +5,11 @@ struct FixedStepSampler <: Sampler
     step::Int
 end
 
+"""
+step=3 ->
+
+[1, 4, 7, 10, ...]
+"""
 function sample(s::FixedStepSampler, n::Int)
     return (1:n)[1:s.step:end]
 end

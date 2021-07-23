@@ -2,7 +2,8 @@ module EFDCLGT_LR_Strategies
 
 using Base: IteratorEltype
 export find_right_cross, SepMutualSimple, SepMutualBased, SepMeanSimple, SepMeanBased,
-        SearchOpt, solve!, FixedStepSampler, IncStepSampler
+        SearchOpt, solve!, FixedStepSampler, IncStepSampler,
+        pure_balancer, create_balanced_hub
 
 using DateDataFrames
 #=
