@@ -196,10 +196,6 @@ function find_right_cross(f::Function, separator_vec::AbstractVector{<:Separator
 
         sep_args = SeparatorArgs(HubBacktrackView.(hub_vec)...)
 
-        #=
-        right_cross_open = _find_right_cross_based(f, backtract_view_vec[1],  backtract_view_vec[2], strap, percent)
-        right_cross_close = _find_right_cross_simple(f, backtract_view_vec[2], strap, percent)
-        =#
         right_cross_vec = map(separator_vec) do separator
             return separate(f, separator, sep_args)
         end

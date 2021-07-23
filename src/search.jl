@@ -136,7 +136,7 @@ function apply_code(hub_p::Hub, strap::Strap, code::Dict;
     return hub
 end
 
-Base.@kwdef mutable struct SearchOpt{F <: Function, T <: Period, RT <: HubRunningMode, IT}
+Base.@kwdef mutable struct SearchOpt{F <: Function, ST <: Sampler, T <: Period, RT <: HubRunningMode, IT}
     f::F
     hub_base::Hub
     strap::Strap
@@ -144,7 +144,8 @@ Base.@kwdef mutable struct SearchOpt{F <: Function, T <: Period, RT <: HubRunnin
     proposed_sep::DateTime
     opt_dst::String
 
-    step::Int=length(strap.inflow_vec)
+    #sampler::ST=FixedStepSampler(length(strap.inflow_vec))
+    sampler::ST=IncStepSampler(length(strap.inflow_vec) * 2)
     batch_window_size::Int=24
     sub_window_size::Int=12
     right_relex::T=Hour(6)
@@ -177,7 +178,7 @@ Base.@kwdef mutable struct SearchOpt{F <: Function, T <: Period, RT <: HubRunnin
 
     batch_window::Vector{Dict{Inflow, Vector{DateTime}}}=Dict{Inflow, Vector{DateTime}}[]
 
-    it::IT=Iterators.Stateful(Iterators.partition(code_vec[1:step:end], batch_window_size))
+    it::IT=Iterators.Stateful(Iterators.partition(code_vec[sample(sampler, length(code_vec))], batch_window_size))
 
     min_load_pump_natural_time::T=typemax(Hour)
 
@@ -199,7 +200,6 @@ function Base.show(io::IO, so::SearchOpt)
         println(io, "$fn: $vs")
     end
 end
-
 
 function step_inflow_pre!(so::SearchOpt; batch_window=so.batch_window,
                                 hub_p=so.hub_p, strap=so.strap, 

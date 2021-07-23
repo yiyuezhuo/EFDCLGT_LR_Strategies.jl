@@ -2,7 +2,7 @@ module EFDCLGT_LR_Strategies
 
 using Base: IteratorEltype
 export find_right_cross, SepMutualSimple, SepMutualBased, SepMeanSimple, SepMeanBased,
-        SearchOpt, solve!
+        SearchOpt, solve!, FixedStepSampler, IncStepSampler
 
 using DateDataFrames
 #=
@@ -18,8 +18,9 @@ using Dates
 using Statistics
 
 include("utils.jl")
+include("samplers.jl")
 include("separators.jl")
 include("search.jl")
-include("allocate.jl")
+include("balancer.jl")
 
 end # module

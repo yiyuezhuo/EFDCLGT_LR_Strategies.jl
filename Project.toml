@@ -1,7 +1,7 @@
 name = "EFDCLGT_LR_Strategies"
 uuid = "5f2a63e8-a3ec-4214-9ca6-8735e59672fc"
 authors = ["yiyuezhuo <yiyuezhuo@gmail.com>"]
-version = "0.1.2"
+version = "0.1.3"
 
 [deps]
 DateDataFrames = "29e7b70a-2656-403a-ac7f-b13d7a27cc98"
