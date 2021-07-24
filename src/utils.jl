@@ -25,7 +25,7 @@ function simple_show(io::IO, so; thres=100)
         v = getfield(so, fn)
         vs = "$v"
         if length(vs) > thres
-            vs = "OMMITED"
+            vs = "..."
         end
         println(io, "$fn: $vs")
     end

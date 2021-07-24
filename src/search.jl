@@ -134,7 +134,7 @@ Base.@kwdef mutable struct SearchOpt{F <: Function, ST <: Sampler, T <: Period, 
     eval_lag::T=Hour(24)
     pump_natural_anchor_time::T=Hour(48)
     pump_search_time_vec::Vector{T}=Hour.([0, 1, 2, 3, 4, 5, 6, 8, 12, 24, 48, 72])
-    # hub_running_mode::RT=NormalBatch()
+    # hub_running_mode::RT=NormalBatch() # If you wonder if AutoRestartCutScheduler is problematic, try fallback "NormalBatch".
     hub_running_mode::RT=AutoRestartCutScheduler()
 
     _range4::Range4{T}=Range4(hub_base, undecided_begin, proposed_sep, right_relax, eval_lag)

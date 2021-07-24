@@ -27,6 +27,5 @@ include("separators.jl")
 include("search.jl")
 include("balancer.jl")
 include("sequential.jl")
-include("recipes.jl")
 
 end # module

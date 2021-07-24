@@ -69,6 +69,9 @@ function find_right_cross!(dm::DecisionMaker, ds::DecisionState)
     dt = find_right_cross(dm.f, dm.separator_vec, ds.hub_base, dm.strap, ds.undecided_begin; 
                             dm.find_right_cross_kwargs...)
     ds.proposed_sep = dt
+    if ds.proposed_sep == typemax(DateTime)
+        return
+    end
     ds.range4 = Range4(ds.hub_base, ds.undecided_begin, ds.proposed_sep, dm.right_relax, dm.eval_lag)
 end
 
@@ -91,17 +94,30 @@ function project!(dm::DecisionMaker, ds::DecisionState)
         return apply_code(ds.so.hub_p, dm.strap, ds.so.min_load_code, 
                             ds.so.min_load_pump_natural_time, ds.undecided_begin)
     end
-    set_sim_length!(ds.hub_project, ds.range4.project_range[end])
-    
-    task_vec = map(hub_vec) do hub
-        return @async run_simulation!(hub) # they have different sim_length, so call run_simulation! one by one.
+
+    if length(ds.range4.project_range) == 0
+        run_simulation!(ds.hub_eval)
+    else
+        set_sim_length!(ds.hub_project, ds.range4.project_range[end])
+        
+        # TODO: Enable different end scheduler or use restarting/auto_step manually.
+        task_vec = map(hub_vec) do hub
+            return @async run_simulation!(hub) # they have different sim_length, so call run_simulation! one by one.
+        end
+        foreach(wait, task_vec)
     end
-    foreach(wait, task_vec)
 end
 
 function fork!(dm::DecisionMaker)
     ds = dm.state_vec[end]
-    ds_new = DecisionState(fork(ds.hub_project), ds.range4.interested_range[end] + Hour(1)) # TODO: ⊐̸ Hour(1)
+
+    if is_over(ds.hub_project)
+        hub_base = fork(ds.hub_project)
+    else # when decision interval is < 1 day
+        hub_base = copy(ds.hub_project)
+    end
+
+    ds_new = DecisionState(hub_base, ds.range4.interested_range[end] + Hour(1)) # TODO: ⊐̸ Hour(1)
     push!(dm.state_vec, ds_new)
 end
 
@@ -110,14 +126,23 @@ function step!(dm::DecisionMaker)
 
     find_right_cross!(dm, ds)
 
+    @info "proposed_sep=$(ds.proposed_sep)"
+
     if ds.proposed_sep == typemax(DateTime)
         @warn "proposed_sep is not found, fast forward."
-        return
+        return false
     end
 
     balance!(dm, ds)
     search!(dm, ds)
     project!(dm, ds)
 
+    load_eval = loading(dm.f, dm.opt_dst, ds.hub_eval, dm.strap, ds.range4.eval_range)
+    @info "load_eval=$(load_eval), " *
+          "min_load=$(ds.so.min_load), " *
+          "min_load_code=$(ds.so.min_load_code), " * 
+          "min_load_pump_natural_time=$(ds.so.min_load_pump_natural_time), "
+
     fork!(dm)
+    return true
 end
